@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI二维码工具</title>
+    <!-- 引入Tailwind CSS以实现快速美观的UI设计 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入QR Code生成库 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- 引入QR Code扫描库 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"
+        crossorigin="anonymous"></script>
+    <style>
+        /* 自定义样式，用于美化UI和实现一些效果 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .tab-btn.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #video-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 扫描区域的边框样式 */
+        #scan-region {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60%;
+            height: 0;
+            padding-bottom: 60%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            border: 2px solid white;
+            border-radius: 1rem;
+        }
+
+        /* 加载动画 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden my-4">
+        <!-- 主体内容区域 -->
+        <div class="p-4 md:p-6">
+            <header class="flex justify-between items-center mb-4">
+                <h1 class="text-2xl font-bold text-gray-800">AI二维码工具</h1>
+                <!-- 设置按钮 -->
+                <button id="settings-btn" class="text-gray-500 hover:text-blue-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </header>
+
+            <!-- Tab 导航 -->
+            <div class="grid grid-cols-2 gap-2 mb-6">
+                <button data-tab="scanner"
+                    class="tab-btn p-3 text-sm font-semibold text-gray-600 border-b-2 border-transparent rounded-t-lg hover:bg-gray-50 active">扫描二维码</button>
+                <button data-tab="generator"
+                    class="tab-btn p-3 text-sm font-semibold text-gray-600 border-b-2 border-transparent rounded-t-lg hover:bg-gray-50">我的二维码</button>
+            </div>
+
+            <!-- Tab 内容 -->
+            <div>
+                <!-- 扫描器面板 -->
+                <div id="scanner-content" class="tab-content active">
+                    <div id="video-container"
+                        class="w-full aspect-square bg-gray-900 rounded-lg mb-4 flex items-center justify-center text-white">
+                        <video id="qr-video" class="rounded-lg"></video>
+                        <div id="scan-region"></div>
+                    </div>
+                    <button id="start-scan-btn"
+                        class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">开始扫描</button>
+                    <div class="mt-4 p-4 bg-gray-100 rounded-lg min-h-[50px]">
+                        <p class="text-sm text-gray-500">扫描结果:</p>
+                        <p id="scan-result" class="text-gray-800 font-medium break-all">- 等待扫描 -</p>
+                    </div>
+                </div>
+
+                <!-- 生成器面板 -->
+                <div id="generator-content" class="tab-content">
+                    <div
+                        class="flex items-center justify-center mb-4 p-4 border-2 border-dashed rounded-lg bg-gray-50 min-h-[256px]">
+                        <div id="qrcode-container"></div>
+                    </div>
+                    <textarea id="qr-text-input"
+                        class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows="3" placeholder="在此输入文本或链接..."></textarea>
+                    <button id="generate-btn"
+                        class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 mb-4">生成二维码</button>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div id="settings-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">设置</h2>
+                <button id="close-modal-btn"
+                    class="text-gray-500 hover:text-black text-3xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="camera-select" class="block text-sm font-medium text-gray-700 mb-2">选择摄像头:</label>
+                    <select id="camera-select"
+                        class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <!-- 摄像头选项将通过JS动态填充 -->
+                    </select>
+                </div>
+                <div>
+                    <label for="qr-id-input" class="block text-sm font-medium text-gray-700 mb-2">QR标识符:</label>
+                    <input type="text" id="qr-id-input" placeholder="请输入QR标识符"
+                        class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="refresh-rate-select" class="block text-sm font-medium text-gray-700 mb-2">刷新频率:</label>
+                    <select id="refresh-rate-select"
+                        class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="1000">1秒</option>
+                        <option value="2000" selected>2秒</option>
+                        <option value="5000">5秒</option>
+                        <option value="10000">10秒</option>
+                    </select>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4">更多设置功能正在开发中...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        //import QrScanner from "https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js";
+
+        // 等待DOM加载完成
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-content');
+
+            const videoElem = document.getElementById('qr-video');
+            const startScanBtn = document.getElementById('start-scan-btn');
+            const scanResultElem = document.getElementById('scan-result');
+
+            const qrTextInput = document.getElementById('qr-text-input');
+            const generateBtn = document.getElementById('generate-btn');
+            const qrcodeContainer = document.getElementById('qrcode-container');
+
+
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const cameraSelect = document.getElementById('camera-select');
+            const qrIDInput = document.getElementById('qr-id-input');
+            const intervalSelect = document.getElementById('refresh-rate-select');
+
+            let qrScanner;
+            let currentTab = 'scanner';
+            let qrCodeInstance = null;
+            let qrText = "";
+            let qrID = -1;
+
+            // 初始化二维码生成器 (Lazy initialization)
+            const initializeQRCodeGenerator = () => {
+                if (!qrCodeInstance) {
+                    qrCodeInstance = new QRCode(qrcodeContainer, {
+                        width: 220,
+                        height: 220,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }
+            };
+
+            // 初始化二维码扫描器
+            const setupScanner = async () => {
+                try {
+                    const hasCamera = await QrScanner.hasCamera();
+                    if (!hasCamera) {
+                        scanResultElem.textContent = "未找到摄像头。";
+                        startScanBtn.disabled = true;
+                        return;
+                    }
+                    // 填充摄像头选项
+                    const cameras = await QrScanner.listCameras(true);
+                    cameraSelect.innerHTML = '';
+                    cameras.forEach(camera => {
+                        const option = document.createElement('option');
+                        option.value = camera.id;
+                        option.textContent = camera.label;
+                        cameraSelect.appendChild(option);
+                    });
+                    qrScanner = new QrScanner(
+                        videoElem,
+                        result => {
+                            if (qrID <= 0) {
+                                scanResultElem.textContent = "请先设置qrID";
+                                return;
+                            }
+                            if (result.data != qrText) {
+                                //qrScanner.stop();
+                                //startScanBtn.textContent = '重新扫描';
+                                // a POST request
+                                fetch('/qr/' + qrID, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json; charset=utf-8'
+                                    },
+                                    body: JSON.stringify({ "data": result.data })
+                                }).then(async (resp) => {
+                                    console.log('status:', await resp.text());
+                                    scanResultElem.textContent = result.data;
+                                    qrText = result.data;
+                                });
+
+
+                            }
+                        },
+                        {
+                            highlightScanRegion: true,
+                            highlightCodeOutline: true,
+                        },
+                    );
+                } catch (err) {
+                    console.error("Scanner setup failed:", err);
+                    scanResultElem.textContent = "扫描器初始化失败。";
+                }
+            };
+
+            // Tab切换逻辑
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const targetTab = tab.dataset.tab;
+                    if (targetTab === currentTab) return;
+                    currentTab = targetTab;
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    contents.forEach(content => content.classList.remove('active'));
+                    document.getElementById(`${targetTab}-content`).classList.add('active');
+
+                    if (targetTab !== 'scanner' && qrScanner && qrScanner._active) {
+                        qrScanner.stop();
+                        startScanBtn.textContent = '开始扫描';
+                    }
+                });
+            });
+
+            // 开始/停止扫描按钮
+            startScanBtn.addEventListener('click', () => {
+                if (!qrScanner) return;
+                if (qrScanner._active) {
+                    qrScanner.stop();
+                    startScanBtn.textContent = '开始扫描';
+                } else {
+                    scanResultElem.textContent = "- 正在启动摄像头 -";
+                    qrScanner.start().then(() => {
+                        scanResultElem.textContent = "- 等待扫描 -";
+                        startScanBtn.textContent = '停止扫描';
+                    }).catch(err => {
+                        console.error(err);
+                        scanResultElem.textContent = "错误：无法启动摄像头。请检查权限。";
+                    });
+                }
+            });
+
+            // 生成二维码按钮
+            generateBtn.addEventListener('click', () => {
+                if (qrID <= 0) {
+                    qrTextInput.value = "请先设置qrID";
+                    return;
+                }
+                initializeQRCodeGenerator();
+                //qrcodeContainer.innerHTML = '';
+                fetch("/qr/" + qrID).then(
+                    async (resp) => {
+                        qrText = await resp.text();
+                        qrCodeInstance.makeCode(qrText);
+                        console.log(qrText);
+                        qrTextInput.value = qrText;
+                    });
+                //qrcodePlaceholder.style.display = 'none';
+            });
+
+            // 设置弹窗逻辑
+            settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+            closeModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    settingsModal.classList.add('hidden');
+                }
+            });
+
+            // 切换摄像头
+            cameraSelect.addEventListener('change', () => {
+                if (qrScanner) {
+                    qrScanner.setCamera(cameraSelect.value);
+                }
+            });
+
+            qrIDInput.addEventListener('change', () => {
+                qrID = parseInt(qrIDInput.value);
+            });
+
+            // 初始化
+            setupScanner();
+        });
+    </script>
+</body>
+
+</html>
