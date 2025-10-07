@@ -86,10 +86,3 @@ def handle_qr_code(qrID: int):
             return jsonify({"data": ""}), 404 # Not Found
             
         return jsonify({"data": stored_data}), 200
-
-# 当直接运行此脚本时，启动 Flask 开发服务器
-if __name__ == '__main__':
-    # debug=True 会在代码变动后自动重启服务器，方便开发
-    # host='0.0.0.0' 使服务器可以从网络中的任何计算机访问
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
