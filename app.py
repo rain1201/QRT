@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify, send_from_directory
 import redis
 import os
@@ -12,7 +13,7 @@ app = Flask(__name__)
 
 # --- Redis 连接 ---
 # 从环境变量 REDIS_URL 获取连接字符串，如果未设置则使用默认值
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+redis_url = os.environ.get('REDIS_URL', "redis://13951")
 
 # 创建 Redis 连接实例
 # decode_responses=True 确保从 Redis 获取的值是字符串而不是字节
